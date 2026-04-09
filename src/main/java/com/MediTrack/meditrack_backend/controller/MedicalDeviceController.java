@@ -1,6 +1,7 @@
 package com.MediTrack.meditrack_backend.controller;
 
 import com.MediTrack.meditrack_backend.model.dto.MedicalDeviceDTO;
+import jakarta.validation.Valid;
 import com.MediTrack.meditrack_backend.service.MedicalDeviceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -17,7 +18,7 @@ public class MedicalDeviceController {
     private final MedicalDeviceService medicalDeviceService;
 
     @PostMapping
-    public ResponseEntity<MedicalDeviceDTO> createDevice(@RequestBody MedicalDeviceDTO dto) {
+    public ResponseEntity<MedicalDeviceDTO> createDevice(@Valid @RequestBody MedicalDeviceDTO dto) {
         MedicalDeviceDTO createdDevice = medicalDeviceService.createDevice(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdDevice);
     }
@@ -35,7 +36,7 @@ public class MedicalDeviceController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<MedicalDeviceDTO> updateDevice(@PathVariable Integer id, @RequestBody MedicalDeviceDTO dto) {
+    public ResponseEntity<MedicalDeviceDTO> updateDevice(@PathVariable Integer id, @Valid @RequestBody MedicalDeviceDTO dto) {
         MedicalDeviceDTO updatedDevice = medicalDeviceService.updateDevice(id, dto);
         return ResponseEntity.ok(updatedDevice);
     }
