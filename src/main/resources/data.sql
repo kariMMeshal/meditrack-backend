@@ -1,0 +1,25 @@
+---- Departments
+----INSERT INTO departments (name, description) VALUES ('ICU', 'Intensive Care Unit');
+----INSERT INTO departments (name, description) VALUES ('Radiology', 'Radiology Department');
+--
+---- Roles
+----INSERT INTO roles (role) VALUES ('ROLE_ADMIN');
+----INSERT INTO roles (role) VALUES ('ROLE_BIOMED');
+----INSERT INTO roles (role) VALUES ('ROLE_USER');
+--
+---- Users (BCrypt password placeholder)
+----INSERT INTO users (username, email, password, enabled, deleted)
+----VALUES ('admin', 'admin@hospital.com', '$2a$10$HASHED_PASSWORD_HERE', 1, 0);
+--
+---- User Roles
+--INSERT INTO user_roles (user_id, role_id)
+--SELECT u.id, r.id
+--FROM users u, roles r
+--WHERE u.username='admin' AND r.role='ROLE_ADMIN';
+--
+---- Sample Medical Devices
+--INSERT INTO medical_devices (name, model, manufacturer, quantity, status, condition_description, department_id)
+--VALUES ('Ventilator', 'V100', 'MedEquip', 5, 'working', 'All good', 1);
+--
+--INSERT INTO medical_devices (name, model, manufacturer, quantity, status, condition_description, department_id)
+--VALUES ('X-Ray Machine', 'XR-200', 'RadTech', 2, 'needs maintenance', 'Calibration required', 2);
