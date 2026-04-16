@@ -5,7 +5,10 @@ import com.MediTrack.meditrack_backend.model.enitity.Department;
 import com.MediTrack.meditrack_backend.model.enitity.MedicalDevice;
 import com.MediTrack.meditrack_backend.repository.DepartmentRepository;
 import com.MediTrack.meditrack_backend.repository.MedicalDeviceRepository;
+import com.MediTrack.meditrack_backend.util.enums.DeviceStatus;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -92,10 +95,25 @@ public class MedicalDeviceServiceImpl implements MedicalDeviceService {
     }
 
     @Override
-    public List<MedicalDeviceDTO> getAllDevices() {
-        return deviceRepository.findAll().stream()
-                .map(this::mapToDTO)
-                .collect(Collectors.toList());
+    public Page<MedicalDeviceDTO> getAllDevices(
+            DeviceStatus status,
+            String name,
+            Pageable pageable
+    ) {
+
+        Page<MedicalDevice> devices;
+
+          if (status != null) {
+            devices = deviceRepository.findByStatus(status, pageable);
+
+        } else if (name != null && !name.isEmpty()) {
+            devices = deviceRepository.findByNameContainingIgnoreCase(name, pageable);
+
+        } else {
+            devices = deviceRepository.findAll(pageable);
+        }
+
+        return devices.map(this::mapToDTO);
     }
 
     private MedicalDeviceDTO mapToDTO(MedicalDevice device) {
