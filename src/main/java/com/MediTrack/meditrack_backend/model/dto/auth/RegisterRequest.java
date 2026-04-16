@@ -1,0 +1,20 @@
+package com.MediTrack.meditrack_backend.model.dto.auth;
+
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import lombok.Data;
+
+@Data
+public class RegisterRequest {
+    @NotBlank(message = "username is required")
+    private String username;
+
+    @Email(message = "email format is invalid")
+    @NotBlank(message = "email is required")
+    private String email;
+
+    @NotBlank(message = "password is required")
+    @Size(min = 8, message = "password must be at least 8 characters")
+    private String password;
+}
