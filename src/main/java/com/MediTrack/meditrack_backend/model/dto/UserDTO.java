@@ -1,10 +1,9 @@
 package com.MediTrack.meditrack_backend.model.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
+import lombok.*;
 import lombok.NoArgsConstructor;
 
 import java.util.Set;
@@ -22,7 +21,11 @@ public class UserDTO {
     @Email(message = "email format is invalid")
     @NotBlank(message = "email is required")
     private String email;
-    private boolean enabled;
-    private boolean deleted;
+
+    @NotBlank(message = "Password is required")
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private String password;
+    private Boolean enabled;
+    private Boolean deleted;
     private Set<String> roles;
 }

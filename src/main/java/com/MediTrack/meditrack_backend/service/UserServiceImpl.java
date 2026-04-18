@@ -36,17 +36,30 @@ public class UserServiceImpl implements UserService {
      */
     public UserDTO createUser(UserDTO request) {
         validateUniqueFields(request.getUsername(), request.getEmail(), null);
-        Role defaultRole = roleRepository.findByRole("ROLE_USER")
-                .orElseThrow(() -> new RuntimeException("Default role ROLE_USER not found"));
+
+        Set<Role> roles = new HashSet<>();
+
+        if (request.getRoles() != null && !request.getRoles().isEmpty()) {
+            for (String roleName : request.getRoles()) {
+                Role role = roleRepository.findByRole(roleName)
+                        .orElseThrow(() -> new RuntimeException("Role not found: " + roleName));
+                roles.add(role);
+            }
+        } else {
+            Role defaultRole = roleRepository.findByRole("ROLE_USER")
+                    .orElseThrow(() -> new RuntimeException("Role not found: ROLE_USER"));
+            roles.add(defaultRole);
+        }
 
         User user = User.builder()
                 .username(request.getUsername())
                 .email(request.getEmail())
-                .password(passwordEncoder.encode("ChangeMe123!"))
-                .enabled(true)
-                .deleted(false)
-                .roles(new HashSet<>(Set.of(defaultRole)))
+                .password(passwordEncoder.encode(request.getPassword()))
+                .enabled(request.getEnabled() != null ? request.getEnabled() : true)
+                .deleted(request.getDeleted() != null ? request.getDeleted() : false)
+                .roles(roles)
                 .build();
+
         return toDTO(userRepository.save(user));
     }
 
@@ -79,7 +92,9 @@ public class UserServiceImpl implements UserService {
         validateUniqueFields(request.getUsername(), request.getEmail(), id);
         user.setUsername(request.getUsername());
         user.setEmail(request.getEmail());
-        user.setEnabled(request.isEnabled());
+        if (request.getEnabled() != null) {
+            user.setEnabled(request.getEnabled());
+        }
         return toDTO(userRepository.save(user));
     }
 
