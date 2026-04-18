@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -29,6 +30,7 @@ public class UserController {
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
+    @Transactional
     /**
      * Creates a new user with default account settings.
      */
@@ -38,6 +40,7 @@ public class UserController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
+    @Transactional(readOnly = true)
     /**
      * Returns all non-deleted users.
      */
@@ -47,6 +50,7 @@ public class UserController {
 
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
+    @Transactional(readOnly = true)
     /**
      * Returns one user by id.
      */
@@ -56,6 +60,7 @@ public class UserController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
+    @Transactional
     /**
      * Updates the main profile fields of a user.
      */
@@ -65,6 +70,7 @@ public class UserController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
+    @Transactional
     /**
      * Soft-deletes a user and disables the account.
      */
@@ -75,6 +81,7 @@ public class UserController {
 
     @PatchMapping("/{id}/activate")
     @PreAuthorize("hasRole('ADMIN')")
+    @Transactional
     /**
      * Enables a user account that is not deleted.
      */
@@ -84,6 +91,7 @@ public class UserController {
 
     @PatchMapping("/{id}/deactivate")
     @PreAuthorize("hasRole('ADMIN')")
+    @Transactional
     /**
      * Disables an active user account.
      */
@@ -92,6 +100,7 @@ public class UserController {
     }
 
     @PutMapping("/me/profile")
+    @Transactional
     /**
      * Lets the authenticated user update their own username and email.
      */
@@ -100,6 +109,7 @@ public class UserController {
     }
 
     @PutMapping("/me/password")
+    @Transactional
     /**
      * Lets the authenticated user change their own password.
      */
@@ -110,6 +120,7 @@ public class UserController {
 
     @PutMapping("/{id}/password/reset")
     @PreAuthorize("hasRole('ADMIN')")
+    @Transactional
     /**
      * Lets an admin reset a user's password.
      */
@@ -120,6 +131,7 @@ public class UserController {
 
     @PostMapping("/{userId}/roles/{roleId}")
     @PreAuthorize("hasRole('ADMIN')")
+    @Transactional
     /**
      * Assigns a role to a user.
      */
@@ -129,6 +141,7 @@ public class UserController {
 
     @DeleteMapping("/{userId}/roles/{roleId}")
     @PreAuthorize("hasRole('ADMIN')")
+    @Transactional
     /**
      * Removes a role from a user.
      */
@@ -138,6 +151,7 @@ public class UserController {
 
     @GetMapping("/{userId}/roles")
     @PreAuthorize("hasRole('ADMIN')")
+    @Transactional(readOnly = true)
     /**
      * Returns the role names assigned to a user.
      */

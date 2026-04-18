@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
@@ -21,6 +22,7 @@ public class MedicalDeviceServiceImpl implements MedicalDeviceService {
     private final DepartmentRepository departmentRepository;
 
     @Override
+    @Transactional
     public MedicalDeviceDTO createDevice(MedicalDeviceDTO dto) {
         Department department = departmentRepository.findById(dto.getDepartmentId())
                 .orElseThrow(() -> new RuntimeException("Department not found"));
@@ -50,6 +52,7 @@ public class MedicalDeviceServiceImpl implements MedicalDeviceService {
     }
 
     @Override
+    @Transactional
     public MedicalDeviceDTO updateDevice(Integer id, MedicalDeviceDTO dto) {
         MedicalDevice device = deviceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Device not found"));
@@ -81,6 +84,7 @@ public class MedicalDeviceServiceImpl implements MedicalDeviceService {
     }
 
     @Override
+    @Transactional
     public void deleteDevice(Integer id) {
         deviceRepository.deleteById(id);
     }
@@ -93,6 +97,7 @@ public class MedicalDeviceServiceImpl implements MedicalDeviceService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<MedicalDeviceDTO> getAllDevices(
             DeviceStatus status,
             String name,

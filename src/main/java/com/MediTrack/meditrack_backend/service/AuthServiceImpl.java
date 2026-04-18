@@ -71,6 +71,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     /**
      * Authenticates an existing user and returns a fresh JWT.
      */

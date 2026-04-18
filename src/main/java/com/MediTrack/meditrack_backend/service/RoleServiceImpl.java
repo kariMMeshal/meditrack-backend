@@ -34,6 +34,7 @@ public class RoleServiceImpl implements RoleService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     /**
      * Returns all stored roles.
      */
@@ -44,6 +45,7 @@ public class RoleServiceImpl implements RoleService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     /**
      * Returns one role by id.
      */

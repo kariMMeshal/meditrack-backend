@@ -8,6 +8,7 @@ import com.MediTrack.meditrack_backend.repository.DepartmentRepository;
 import com.MediTrack.meditrack_backend.repository.MedicalDeviceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -20,6 +21,7 @@ public class DepartmentServiceImpl implements DepartmentService {
     private final MedicalDeviceRepository medicalDeviceRepository;
 
     @Override
+    @Transactional
     public DepartmentDTO createDepartment(DepartmentDTO departmentDTO) {
         Department department = Department.builder()
                 .name(departmentDTO.getName())
@@ -31,6 +33,7 @@ public class DepartmentServiceImpl implements DepartmentService {
     }
 
     @Override
+    @Transactional
     public DepartmentDTO updateDepartment(Integer id, DepartmentDTO departmentDTO) {
         Department department = departmentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Department not found"));
@@ -43,6 +46,7 @@ public class DepartmentServiceImpl implements DepartmentService {
     }
 
     @Override
+    @Transactional
     public void deleteDepartment(Integer id) {
         Department department = departmentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Department not found"));
@@ -50,6 +54,7 @@ public class DepartmentServiceImpl implements DepartmentService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public DepartmentDTO getDepartmentById(Integer id) {
         Department department = departmentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Department not found"));
@@ -57,6 +62,7 @@ public class DepartmentServiceImpl implements DepartmentService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<DepartmentDTO> getAllDepartments() {
         return departmentRepository.findAll().stream()
                 .map(this::mapToDTO)
@@ -64,6 +70,7 @@ public class DepartmentServiceImpl implements DepartmentService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<MedicalDeviceDTO> getDevicesByDepartmentId(Integer departmentId) {
         departmentRepository.findById(departmentId)
                 .orElseThrow(() -> new RuntimeException("Department not found"));
