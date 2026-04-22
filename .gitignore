@@ -31,3 +31,10 @@ build/
 
 ### VS Code ###
 .vscode/
+# Environment variables — never commit
+.env
+.env.local
+.env.*
+
+# Keep the example file — safe to commit
+!.env.example

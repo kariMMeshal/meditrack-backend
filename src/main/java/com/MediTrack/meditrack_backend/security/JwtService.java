@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import javax.crypto.SecretKey;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -53,7 +54,19 @@ public class JwtService {
      */
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> extraClaims = new HashMap<>();
+
+        // embed roles so we don't need a DB call on every request
+        extraClaims.put("roles", userDetails.getAuthorities()
+                .stream()
+                .map(auth -> auth.getAuthority())
+                .collect(java.util.stream.Collectors.toList()));
+
         return buildToken(extraClaims, userDetails, jwtProperties.expiration());
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<String> extractRoles(String token) {
+        return (List<String>) extractClaim(token, claims -> claims.get("roles", List.class));
     }
 
     /**
