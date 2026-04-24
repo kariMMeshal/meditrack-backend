@@ -10,6 +10,8 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.util.Map;
+
 @Component
 @Slf4j
 public class AiServiceClient {
@@ -39,6 +41,25 @@ public class AiServiceClient {
                 .body(request)
                 .retrieve()
                 .body(PredictResponse.class);
+    }
+
+    /**
+     * Probes Flask /health to verify ML service is reachable and model is loaded.
+     * Returns true if the service responds with status "ok", false otherwise.
+     * Does NOT use circuit breaker — health checks must always reach the service.
+     */
+    public boolean isModelLoaded() {
+        try {
+            Map response = restClient.get()
+                    .uri("/health")
+                    .retrieve()
+                    .body(Map.class);
+
+            return response != null && "ok".equals(response.get("status"));
+        } catch (Exception ex) {
+            log.error("ML service health probe failed: {}", ex.getMessage());
+            return false;
+        }
     }
 
     // fallback when ML service is down — return null, caller handles gracefully
