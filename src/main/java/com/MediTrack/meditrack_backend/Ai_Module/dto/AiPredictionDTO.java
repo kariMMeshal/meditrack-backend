@@ -17,4 +17,7 @@ public class AiPredictionDTO {
     private String modelVersion;
     private String status;
     private LocalDateTime createdAt;
+    private Double avgTemperatureVariance;
+    private Double avgMotorVibration;
+    private Double avgVoltageDrop;
 }

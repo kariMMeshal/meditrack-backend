@@ -42,6 +42,15 @@ public class AiPrediction {
     @Column(nullable = false)
     private String status; // SUCCESS, FAILED, FALLBACK
 
+    @Column
+    private Double avgTemperatureVariance;
+
+    @Column
+    private Double avgMotorVibration;
+
+    @Column
+    private Double avgVoltageDrop;
+
     @Column(columnDefinition = "TEXT")
     private String errorMessage;
 

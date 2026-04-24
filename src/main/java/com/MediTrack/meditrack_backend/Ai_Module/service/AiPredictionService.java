@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -39,12 +40,15 @@ public class AiPredictionService {
 
     @Transactional
     public AiPredictionDTO predict(@Valid PredictionRequestDTO request) {
+
         MedicalDevice device = deviceRepository.findById(request.getDeviceId())
                 .orElseThrow(() -> new RuntimeException(
                         "Device not found with ID: " + request.getDeviceId()));
 
         String username = SecurityContextHolder.getContext()
-                .getAuthentication().getName();
+                .getAuthentication()
+                .getName();
+
         User requestedBy = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -52,12 +56,32 @@ public class AiPredictionService {
                 .sequence(request.getSequence())
                 .build();
 
+
+        // -------- Input Summary (Null-safe) ----------
+        double avgTemp = 0;
+        double avgVibration = 0;
+        double avgVoltage = 0;
+
+        List<List<Double>> seq = request.getSequence();
+
+        if (seq != null && !seq.isEmpty()) {
+
+            avgTemp = Math.round(seq.stream().mapToDouble(r -> r.get(0)).sum() / seq.size() * 1000.0) / 1000.0;
+
+            avgVibration = Math.round(seq.stream().mapToDouble(r -> r.get(1)).sum() / seq.size() * 1000.0) / 1000.0;
+
+            avgVoltage = Math.round(seq.stream().mapToDouble(r -> r.get(2)).sum() / seq.size() * 1000.0) / 1000.0;
+        }
+        // ---------------------------------------------
+
+
         PredictResponse mlResponse = aiServiceClient.predict(mlRequest);
 
         AiPrediction prediction;
 
         if (mlResponse == null) {
-            // circuit breaker fired — log failure
+
+            // Circuit breaker fallback
             prediction = AiPrediction.builder()
                     .device(device)
                     .probability(null)
@@ -66,9 +90,16 @@ public class AiPredictionService {
                     .thresholdUsed(THRESHOLD_USED)
                     .status("FALLBACK")
                     .errorMessage("ML service unavailable")
+
+                    .avgTemperatureVariance(avgTemp)
+                    .avgMotorVibration(avgVibration)
+                    .avgVoltageDrop(avgVoltage)
+
                     .requestedBy(requestedBy)
                     .build();
+
         } else {
+
             prediction = AiPrediction.builder()
                     .device(device)
                     .probability(mlResponse.getProbability())
@@ -76,13 +107,25 @@ public class AiPredictionService {
                     .modelVersion(MODEL_VERSION)
                     .thresholdUsed(THRESHOLD_USED)
                     .status("SUCCESS")
+
+                    .avgTemperatureVariance(avgTemp)
+                    .avgMotorVibration(avgVibration)
+                    .avgVoltageDrop(avgVoltage)
+
                     .requestedBy(requestedBy)
                     .build();
         }
 
+
         AiPrediction saved = predictionRepository.save(prediction);
-        log.info("Prediction saved: id={}, deviceId={}, prediction={}",
-                saved.getId(), device.getId(), saved.getPrediction());
+
+///        log.info(
+//                "Prediction saved: id={}, deviceId={}, prediction={}, probability={}",
+//                saved.getId(),
+//                device.getId(),
+//                saved.getPrediction(),
+//                saved.getProbability()
+//        );
 
         return toDTO(saved);
     }
@@ -146,6 +189,9 @@ public class AiPredictionService {
                 .modelVersion(p.getModelVersion())
                 .status(p.getStatus())
                 .createdAt(p.getCreatedAt())
+                .avgTemperatureVariance(p.getAvgTemperatureVariance())
+                .avgMotorVibration(p.getAvgMotorVibration())
+                .avgVoltageDrop(p.getAvgVoltageDrop())
                 .build();
     }
 }
