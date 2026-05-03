@@ -1,7 +1,7 @@
 package com.MediTrack.meditrack_backend.security;
 
-import com.MediTrack.meditrack_backend.model.enitity.User;
-import com.MediTrack.meditrack_backend.repository.UserRepository;
+import com.MediTrack.meditrack_backend.Auth_Module.entity.User;
+import com.MediTrack.meditrack_backend.Auth_Module.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;

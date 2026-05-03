@@ -1,9 +1,9 @@
 package com.MediTrack.meditrack_backend.config;
 
-import com.MediTrack.meditrack_backend.model.enitity.Role;
-import com.MediTrack.meditrack_backend.model.enitity.User;
-import com.MediTrack.meditrack_backend.repository.RoleRepository;
-import com.MediTrack.meditrack_backend.repository.UserRepository;
+import com.MediTrack.meditrack_backend.Auth_Module.entity.Role;
+import com.MediTrack.meditrack_backend.Auth_Module.entity.User;
+import com.MediTrack.meditrack_backend.Auth_Module.repository.RoleRepository;
+import com.MediTrack.meditrack_backend.Auth_Module.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;

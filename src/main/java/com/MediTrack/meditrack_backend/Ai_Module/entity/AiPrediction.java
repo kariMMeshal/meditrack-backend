@@ -1,8 +1,8 @@
 package com.MediTrack.meditrack_backend.Ai_Module.entity;
 
-import com.MediTrack.meditrack_backend.model.enitity.MaintenanceLog;
-import com.MediTrack.meditrack_backend.model.enitity.MedicalDevice;
-import com.MediTrack.meditrack_backend.model.enitity.User;
+import com.MediTrack.meditrack_backend.Asset_Management_Module.entity.MaintenanceLog;
+import com.MediTrack.meditrack_backend.Asset_Management_Module.entity.MedicalDevice;
+import com.MediTrack.meditrack_backend.Auth_Module.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
