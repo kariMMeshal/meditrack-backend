@@ -8,7 +8,8 @@ import java.util.Set;
 @Data
 @Builder
 public class AuthResponse {
-    private String token;
+    private String accessToken;
+    private String refreshToken;
     private String tokenType;
     private long expiresInMs;
     private Integer userId;

@@ -24,9 +24,11 @@ public class AiChatService {
     private final AiProviderRouter providerRouter;
     private final ChatMessageRepository chatMessageRepository;
     private final UserRepository userRepository;
+    private final PromptSanitizer promptSanitizer;
 
     @Transactional
     public ChatResponse chat(ChatRequest request) {
+        promptSanitizer.validate(request.getMessage());
         String username = SecurityContextHolder.getContext()
                 .getAuthentication().getName();
         User user = userRepository.findByUsername(username)

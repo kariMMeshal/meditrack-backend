@@ -29,9 +29,11 @@ public class AiReportService {
     private final AiReportRepository reportRepository;
     private final ChatMessageRepository chatMessageRepository;
     private final UserRepository userRepository;
+    private final PromptSanitizer promptSanitizer;
 
     @Transactional
     public ReportResponse generateReport(ReportRequest request) {
+        validateRequest(request);
         String username = SecurityContextHolder.getContext()
                 .getAuthentication().getName();
         User user = userRepository.findByUsername(username)
@@ -103,8 +105,10 @@ public class AiReportService {
         if (!history.isEmpty()) {
             sb.append("=== CHAT HISTORY (").append(history.size()).append(" messages) ===\n");
             for (ChatMessage msg : history) {
+                String safeUserMsg = sanitize(msg.getUserMessage());
+
                 sb.append("[").append(msg.getCreatedAt()).append("]\n");
-                sb.append("User: ").append(msg.getUserMessage()).append("\n");
+                sb.append("User: ").append(safeUserMsg).append("\n");
                 sb.append("Assistant: ").append(msg.getAiResponse()).append("\n\n");
             }
         } else {
@@ -134,6 +138,20 @@ public class AiReportService {
 
         return sb.toString();
     }
+
+    // Validation and sanitization .
+    private void validateRequest(ReportRequest request) {
+        promptSanitizer.validate(request.getReportedEvents());
+        promptSanitizer.validate(request.getAdditionalContext());
+        promptSanitizer.validate(request.getDeviceLogs());
+        promptSanitizer.validate(request.getReportType());
+        promptSanitizer.validate(request.getSessionId());
+    }
+    private String sanitize(String input) {
+        promptSanitizer.validate(input);
+        return input;
+    }
+
 
     private ReportResponse toResponse(AiReport r) {
         return ReportResponse.builder()

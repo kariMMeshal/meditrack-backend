@@ -2,6 +2,10 @@ package com.MediTrack.meditrack_backend.config;
 
 import com.MediTrack.meditrack_backend.security.CustomUserDetailsService;
 import com.MediTrack.meditrack_backend.security.JwtAuthenticationFilter;
+import com.MediTrack.meditrack_backend.security.RateLimitFilter;
+import com.MediTrack.meditrack_backend.security.SecurityHeadersFilter;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -12,44 +16,69 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
+import org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
 import java.util.List;
 
 @Configuration
 @EnableMethodSecurity
-/**
- * Configures JWT-based security, authentication, and password encoding.
- */
+@RequiredArgsConstructor
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final CustomUserDetailsService customUserDetailsService;
+    private final SecurityHeadersFilter securityHeadersFilter;
+    private final RateLimitFilter rateLimitFilter;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter, CustomUserDetailsService customUserDetailsService) {
-        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
-        this.customUserDetailsService = customUserDetailsService;
-    }
+    @Value("${allowed.origins:http://localhost:3000}")
+    private String allowedOrigins;
 
     @Bean
-    /**
-     * Builds the HTTP security rules and registers the JWT filter.
-     */
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                // ── CORS ─────────────────────────────────────────────────
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
+                // ── CSRF disabled — stateless JWT API ────────────────────
                 .csrf(csrf -> csrf.disable())
+
+                // ── Security headers via Spring Security ─────────────────
+                .headers(headers -> headers
+                        .frameOptions(frame -> frame.deny())
+                        .contentTypeOptions(mime -> {})         // nosniff
+                        .httpStrictTransportSecurity(hsts -> hsts
+                                .includeSubDomains(true)
+                                .maxAgeInSeconds(31536000)
+                                .preload(true))
+                        .referrerPolicy(referrer -> referrer
+                                .policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+                )
+
+                // ── Authorization rules ───────────────────────────────────
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health").permitAll()
-                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/auth/login",
+                                "/api/auth/register",
+                                "/api/auth/refresh").permitAll()
                         .anyRequest().authenticated()
                 )
+
+                // ── Stateless session ─────────────────────────────────────
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
                 .authenticationProvider(authenticationProvider())
+
+                // ── Filter chain order ────────────────────────────────────
+                // SecurityHeaders → RateLimit → JWT → controller
+                .addFilterBefore(securityHeadersFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(rateLimitFilter,       UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -59,49 +88,46 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        // Set your actual frontend URL in environment variable
-        String allowedOrigins = System.getenv("ALLOWED_ORIGINS") != null
-                ? System.getenv("ALLOWED_ORIGINS")
-                : "http://localhost:3000";
-
         config.setAllowedOrigins(List.of(allowedOrigins.split(",")));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("*"));
+
+        // Explicit allowed headers — never use "*" in production
+        config.setAllowedHeaders(List.of(
+                "Authorization",
+                "Content-Type",
+                "X-Requested-With",
+                "Accept",
+                "Origin",
+                "Cache-Control"
+        ));
+
+        config.setExposedHeaders(List.of("Authorization"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
 
-        UrlBasedCorsConfigurationSource corsSource = new UrlBasedCorsConfigurationSource();
-        corsSource.registerCorsConfiguration("/api/**", config);
-        return corsSource;
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/api/**", config);
+        return source;
     }
 
     @Bean
-    /**
-     * Exposes Spring Security's authentication manager.
-     */
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
-        return configuration.getAuthenticationManager();
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
     }
 
     @Bean
-    /**
-     * Connects the custom user loader with password verification.
-     */
     public DaoAuthenticationProvider authenticationProvider() {
-
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-
-        authProvider.setUserDetailsService(customUserDetailsService);
-        authProvider.setPasswordEncoder(passwordEncoder());
-
-        return authProvider;
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+        provider.setUserDetailsService(customUserDetailsService);
+        provider.setPasswordEncoder(passwordEncoder());
+        // Suppress "User not found" vs "Bad credentials" distinction
+        provider.setHideUserNotFoundExceptions(true);
+        return provider;
     }
 
     @Bean
-    /**
-     * Encodes and verifies passwords with BCrypt.
-     */
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        // Strength 12 — production-grade BCrypt cost factor
+        return new BCryptPasswordEncoder(12);
     }
 }

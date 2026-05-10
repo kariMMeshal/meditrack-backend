@@ -4,22 +4,27 @@ import com.MediTrack.meditrack_backend.Auth_Module.dto.AuthResponse;
 import com.MediTrack.meditrack_backend.Auth_Module.dto.LoginRequest;
 import com.MediTrack.meditrack_backend.Auth_Module.dto.RegisterRequest;
 
-/**
- * Defines the authentication operations exposed to controllers.
- */
 public interface AuthService {
-    /**
-     * Registers a new user and returns the authentication payload.
-     */
+
     AuthResponse register(RegisterRequest request);
 
     /**
-     * Authenticates a user and returns the authentication payload.
+     * Authenticates user, enforces lockout, records audit event.
+     * @param request login credentials
+     * @param ip      client IP address for audit log
+     * @param userAgent browser/client identifier for audit log
      */
-    AuthResponse login(LoginRequest request);
+    AuthResponse login(LoginRequest request, String ip, String userAgent);
 
     /**
-     * Handles logout for the current authentication approach.
+     * Validates refresh token, rotates it, and issues a new access token.
+     * @param refreshToken the opaque refresh token from a previous login
      */
-    void logout();
+    AuthResponse refresh(String refreshToken, String ip);
+
+    /**
+     * Revokes the refresh token server-side — real logout.
+     * @param refreshToken the token to invalidate
+     */
+    void logout(String refreshToken, String username, String ip, String userAgent);
 }
