@@ -194,6 +194,11 @@ Core entities include:
 * alerts
 * audit_logs
 
+## EER Diagram
+
+  <img width="1001" height="1272" alt="MediTrack_Database_EER_Diagram" src="https://github.com/user-attachments/assets/6ade6390-c724-417a-9173-8173f692c184" />
+
+
 ---
 
 # ⚙️ Tech Stack
