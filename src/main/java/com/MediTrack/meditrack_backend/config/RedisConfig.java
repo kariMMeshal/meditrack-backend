@@ -1,5 +1,6 @@
 package com.MediTrack.meditrack_backend.config;
 
+import io.lettuce.core.RedisClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
@@ -30,6 +31,11 @@ public class RedisConfig {
 
     @Value("${spring.redis.password:}")
     private String password;
+
+    @Bean
+    public RedisClient redisClient() {
+        return RedisClient.create("redis://localhost:6379");
+    }
 
     @Bean
     public LettuceConnectionFactory redisConnectionFactory() {

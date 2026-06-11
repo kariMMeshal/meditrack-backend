@@ -135,6 +135,10 @@
             <artifactId>bucket4j-redis</artifactId>
             <version>8.10.1</version>
         </dependency>
+        <dependency>
+            <groupId>io.lettuce</groupId>
+            <artifactId>lettuce-core</artifactId>
+        </dependency>
         <!-- FlyWay Config       -->
         <dependency>
             <groupId>org.flywaydb</groupId>
