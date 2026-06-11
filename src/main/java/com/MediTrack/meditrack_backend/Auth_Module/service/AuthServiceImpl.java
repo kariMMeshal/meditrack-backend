@@ -9,6 +9,7 @@ import com.MediTrack.meditrack_backend.Auth_Module.entity.User;
 import com.MediTrack.meditrack_backend.Auth_Module.repository.RoleRepository;
 import com.MediTrack.meditrack_backend.Auth_Module.repository.UserRepository;
 import com.MediTrack.meditrack_backend.security.JwtService;
+import com.MediTrack.meditrack_backend.security.TokenBlacklistService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -37,6 +38,7 @@ public class AuthServiceImpl implements AuthService {
     private final RefreshTokenService refreshTokenService;
     private final LoginAttemptService loginAttemptService;
     private final AuditLogService auditLogService;
+    private final TokenBlacklistService tokenBlacklistService;
 
     @Override
     @Transactional
@@ -139,13 +141,17 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public void logout(String refreshToken, String username, String ip, String userAgent) {
+    public void logout(String accessToken, String username, String ip, String userAgent) {
         // Revoke the specific refresh token — real server-side logout
         userRepository.findByUsername(username).ifPresent(user -> {
             refreshTokenService.revokeAllForUser(user);
             log.info("Logout — all refresh tokens revoked for user={}", username);
         });
         auditLogService.logout(username, ip, userAgent);
+        long remainingTtlSeconds = jwtService.getRemainingExpirationSeconds(accessToken);
+
+        tokenBlacklistService.blacklist(accessToken, remainingTtlSeconds);
+        tokenBlacklistService.verifyBlackListed(accessToken,remainingTtlSeconds);
     }
 
     // ── Private Helpers ───────────────────────────────────────────────

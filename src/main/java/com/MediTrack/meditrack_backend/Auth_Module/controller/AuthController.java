@@ -49,7 +49,7 @@ public class AuthController {
             Authentication authentication,
             HttpServletRequest httpRequest) {
         authService.logout(
-                request.getRefreshToken(),
+                request.getAccessToken(),
                 authentication.getName(),
                 extractClientIp(httpRequest),
                 httpRequest.getHeader("User-Agent"));

@@ -124,4 +124,12 @@ public class JwtService {
         byte[] keyBytes = Decoders.BASE64.decode(jwtProperties.secret());
         return Keys.hmacShaKeyFor(keyBytes);
     }
+
+    public long getRemainingExpirationSeconds(String token) {
+        Date expiration = extractExpiration(token);
+
+        long diff = expiration.getTime() - System.currentTimeMillis();
+
+        return Math.max(diff / 1000, 0);
+    }
 }

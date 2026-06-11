@@ -30,6 +30,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final CustomUserDetailsService customUserDetailsService;
+    private final TokenBlacklistService tokenBlacklistService;
 
     @Override
     /**
@@ -47,6 +48,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         String token = authHeader.substring(7);
+        if (tokenBlacklistService.isBlacklisted(token)) {
+            writeUnauthorizedResponse(response, "Token has been revoked");
+            return;
+        }
         try {
             String username = jwtService.extractUsername(token);
 
