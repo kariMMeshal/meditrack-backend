@@ -36,6 +36,18 @@ public class SecurityConfig {
     private final SecurityHeadersFilter securityHeadersFilter;
     private final RateLimitFilter rateLimitFilter;
 
+    private static final String[] PUBLIC_ENDPOINTS = {
+            "/api/auth/login",
+            "/api/auth/register",
+            "/api/auth/refresh"
+    };
+
+    private static final String[] SWAGGER_ENDPOINTS = {
+            "/swagger-ui/**",
+            "/v3/api-docs/**",
+            "/swagger-ui.html"
+    };
+
     @Value("${allowed.origins:http://localhost:3000}")
     private String allowedOrigins;
 
@@ -62,10 +74,9 @@ public class SecurityConfig {
 
                 // ── Authorization rules ───────────────────────────────────
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(SWAGGER_ENDPOINTS).permitAll()
+                        .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         .requestMatchers("/actuator/health").permitAll()
-                        .requestMatchers("/api/auth/login",
-                                "/api/auth/register",
-                                "/api/auth/refresh").permitAll()
                         .anyRequest().authenticated()
                 )
 

@@ -49,12 +49,25 @@ public class SecurityHeadersFilter extends OncePerRequestFilter {
         // Don't send Referer header when navigating away from this origin
         response.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
 
-        // CSP: API backend — no inline scripts, no external resources needed
-        response.setHeader("Content-Security-Policy",
-                "default-src 'none'; " +
-                        "frame-ancestors 'none'; " +
-                        "base-uri 'none'; " +
-                        "form-action 'self'");
+        String path = request.getRequestURI();
+
+        boolean isSwagger = path.startsWith("/swagger-ui") ||
+                            path.startsWith("/v3/api-docs") ||
+                            path.startsWith("/swagger-ui.html");
+        if (isSwagger) {
+            response.setHeader("Content-Security-Policy",
+                    "default-src 'self'; " +
+                            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+                            "style-src 'self' 'unsafe-inline'; " +
+                            "img-src 'self' data:; " +
+                            "connect-src 'self';");
+        } else {
+            response.setHeader("Content-Security-Policy",
+                    "default-src 'none'; " +
+                            "frame-ancestors 'none'; " +
+                            "base-uri 'none'; " +
+                            "form-action 'self';");
+        }
 
         // Prevent browsers from caching API responses
         response.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
