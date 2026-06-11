@@ -151,7 +151,7 @@ public class AuthServiceImpl implements AuthService {
         long remainingTtlSeconds = jwtService.getRemainingExpirationSeconds(accessToken);
 
         tokenBlacklistService.blacklist(accessToken, remainingTtlSeconds);
-        tokenBlacklistService.verifyBlackListed(accessToken,remainingTtlSeconds);
+
     }
 
     // ── Private Helpers ───────────────────────────────────────────────

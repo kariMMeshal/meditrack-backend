@@ -34,15 +34,4 @@ public class TokenBlacklistService {
         return Boolean.TRUE.equals(redisTemplate.hasKey(PREFIX + token));
     }
 
-    public void verifyBlackListed(String token, long remainingTtlSeconds) {
-        if (remainingTtlSeconds > 0) {
-            redisTemplate.opsForValue()
-                    .set(PREFIX + token, "revoked", Duration.ofSeconds(remainingTtlSeconds));
-
-            System.out.println("BLACKLISTED TOKEN -> TTL: " + remainingTtlSeconds);
-        } else {
-            System.out.println("TOKEN NOT BLACKLISTED (TTL <= 0)");
-        }
-    }
-
 }
