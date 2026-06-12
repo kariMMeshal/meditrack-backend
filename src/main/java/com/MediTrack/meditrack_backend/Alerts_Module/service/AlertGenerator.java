@@ -13,7 +13,6 @@ import org.springframework.stereotype.Component;
  * Central factory for alert creation.
  * All alert generation paths go through here — keeps message formatting
  * and severity logic in one place and easy to audit.
- *
  * Sources that call this:
  * - AiPredictionService  (LSTM failure prediction)
  * - RiskAssessmentService (RF risk classifier)
@@ -146,7 +145,7 @@ public class AlertGenerator {
 
     public void failedLoginAttempt(String username, String ipAddress) {
         String message = String.format(
-                "Multiple failed login attempts detected for user '%s' from IP: %s.",
+                "Failed login attempt detected for user '%s' from IP: %s.",
                 username, ipAddress);
         String metadata = String.format(
                 "{\"username\":\"%s\",\"ip\":\"%s\",\"event\":\"FAILED_LOGIN\"}",
@@ -156,6 +155,27 @@ public class AlertGenerator {
         alertService.createAlert(CreateAlertRequest.builder()
                 .type(AlertType.SECURITY_ALERT)
                 .severity(AlertSeverity.WARNING)
+                .message(message)
+                .metadata(metadata)
+                .build());
+    }
+
+    /**
+     * Creates a CRITICAL SECURITY_ALERT when an account gets locked.
+     * Called by AuthServiceImpl right after LockOutService locks the account.
+     */
+    public void accountLocked(String username, String ipAddress, int lockoutMinutes) {
+        String message = String.format(
+                "Account '%s' was locked for %d minutes after repeated failed login attempts from IP: %s.",
+                username, lockoutMinutes, ipAddress);
+        String metadata = String.format(
+                "{\"username\":\"%s\",\"ip\":\"%s\",\"lockoutMinutes\":%d,\"event\":\"ACCOUNT_LOCKED\"}",
+                username, ipAddress, lockoutMinutes);
+
+        log.warn("Generating SECURITY_ALERT (account locked) — username={}", username);
+        alertService.createAlert(CreateAlertRequest.builder()
+                .type(AlertType.SECURITY_ALERT)
+                .severity(AlertSeverity.CRITICAL)
                 .message(message)
                 .metadata(metadata)
                 .build());

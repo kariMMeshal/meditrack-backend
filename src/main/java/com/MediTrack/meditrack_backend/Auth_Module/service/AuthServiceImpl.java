@@ -1,5 +1,6 @@
 package com.MediTrack.meditrack_backend.Auth_Module.service;
 
+import com.MediTrack.meditrack_backend.Alerts_Module.service.AlertGenerator;
 import com.MediTrack.meditrack_backend.Auth_Module.dto.AuthResponse;
 import com.MediTrack.meditrack_backend.Auth_Module.dto.LoginRequest;
 import com.MediTrack.meditrack_backend.Auth_Module.dto.RegisterRequest;
@@ -9,6 +10,7 @@ import com.MediTrack.meditrack_backend.Auth_Module.entity.User;
 import com.MediTrack.meditrack_backend.Auth_Module.repository.RoleRepository;
 import com.MediTrack.meditrack_backend.Auth_Module.repository.UserRepository;
 import com.MediTrack.meditrack_backend.security.JwtService;
+import com.MediTrack.meditrack_backend.security.LockOutService;
 import com.MediTrack.meditrack_backend.security.TokenBlacklistService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,9 +38,10 @@ public class AuthServiceImpl implements AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
-    private final LoginAttemptService loginAttemptService;
     private final AuditLogService auditLogService;
     private final TokenBlacklistService tokenBlacklistService;
+    private final LockOutService lockOutService;
+    private final AlertGenerator alertGenerator;
 
     @Override
     @Transactional
@@ -74,48 +77,48 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public AuthResponse login(LoginRequest request, String ip, String userAgent) {
-        // Find user first — needed for lockout check before Spring Security authenticates
-        User user = userRepository.findByUsername(request.getUsername()).orElse(null);
 
-        // Check lockout BEFORE attempting authentication
-        if (user != null && loginAttemptService.isLocked(user)) {
+        // 1. Check lockout BEFORE touching the database for auth
+        if (lockOutService.isLocked(request.getUsername())) {
             auditLogService.loginFailure(request.getUsername(), ip, userAgent, "Account locked");
-            // Generic error — don't reveal lockout status to potential attackers
             throw new BadCredentialsException("Authentication failed");
         }
 
         try {
             authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
-            );
+                    new UsernamePasswordAuthenticationToken(
+                            request.getUsername(), request.getPassword()));
         } catch (AuthenticationException ex) {
-            // Record failure — may trigger lockout
-            if (user != null) {
-                loginAttemptService.recordFailure(user, ip);
+
+            // 2. Record failure in Redis — returns true if THIS attempt locked the account
+            boolean justLocked = lockOutService.recordFailure(request.getUsername());
+
+            alertGenerator.failedLoginAttempt(request.getUsername(), ip);
+
+            if (justLocked) {
+                alertGenerator.accountLocked(
+                        request.getUsername(), ip, lockOutService.getLockoutMinutes());
             }
+
             auditLogService.loginFailure(request.getUsername(), ip, userAgent, ex.getMessage());
-            // Generic message — prevents user enumeration
             throw new BadCredentialsException("Authentication failed");
         }
 
-        // Reload user after successful auth — state may have changed
-        user = userRepository.findByUsername(request.getUsername())
+        User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         if (user.isDeleted() || !user.isEnabled()) {
             throw new BadCredentialsException("Authentication failed");
         }
 
-        // Reset lockout counter on successful login
-        loginAttemptService.recordSuccess(user);
+        // 3. Success — clear Redis lockout state
+        lockOutService.recordSuccess(user.getUsername());
 
         UserDetails userDetails = buildUserDetails(user);
         String accessToken = jwtService.generateToken(userDetails);
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
 
         auditLogService.loginSuccess(user.getUsername(), ip, userAgent);
-        log.info("Login successful — username={}, ip={}", user.getUsername(), ip);
-
         return buildAuthResponse(user, accessToken, refreshToken.getToken());
     }
 

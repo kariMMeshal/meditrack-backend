@@ -47,13 +47,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
         // Bucket is stored in Redis — shared across all app instances
         Bucket bucket = proxyManager.builder().build(bucketKey.getBytes(), configSupplier);
-
-        if (bucket.tryConsume(1)) {
-            filterChain.doFilter(request, response);
-            ConsumptionProbe probe = bucket.tryConsumeAndReturnRemaining(1);
+        ConsumptionProbe probe = bucket.tryConsumeAndReturnRemaining(1);
+        if (probe.isConsumed()) {
             System.out.println(
                     "Remaining tokens: " + probe.getRemainingTokens()
             );
+            filterChain.doFilter(request, response);
         } else {
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
@@ -72,7 +71,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private Supplier<BucketConfiguration> resolveBucketConfig(String uri) {
-        int capacity = uri.contains("/login") ? 10 : uri.contains("/refresh") ? 20 : 30;
+        int capacity = uri.contains("/login") ? 5 : uri.contains("/refresh") ? 20 : 30;
         return () -> BucketConfiguration.builder()
                 .addLimit(Bandwidth.classic(capacity,
                         Refill.intervally(capacity, Duration.ofMinutes(1))))

@@ -2,6 +2,7 @@ package com.MediTrack.meditrack_backend.Auth_Module.controller;
 
 import com.MediTrack.meditrack_backend.Auth_Module.dto.*;
 import com.MediTrack.meditrack_backend.Auth_Module.service.AuthService;
+import com.MediTrack.meditrack_backend.security.LockOutService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,7 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+    private final LockOutService lockOutService;
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(
@@ -25,13 +27,21 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(
+    public ResponseEntity<?> login(
             @Valid @RequestBody LoginRequest request,
             HttpServletRequest httpRequest) {
-        return ResponseEntity.ok(authService.login(
-                request,
-                extractClientIp(httpRequest),
-                httpRequest.getHeader("User-Agent")));
+        String ip = extractClientIp(httpRequest);
+
+        if (lockOutService.isLocked(request.getUsername())) {
+            long secondsLeft = lockOutService.remainingLockoutSeconds(request.getUsername());
+            return ResponseEntity.status(429).body(Map.of(
+                    "status", 429,
+                    "error", "Too Many Requests",
+                    "message", "Account temporarily locked. Try again in " + secondsLeft + " seconds."
+            ));
+        }
+
+        return ResponseEntity.ok(authService.login(request, ip, httpRequest.getHeader("User-Agent")));
     }
 
     @PostMapping("/refresh")
