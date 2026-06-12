@@ -7,6 +7,8 @@ import com.MediTrack.meditrack_backend.Ai_Module.dto.RfFlaskResponse;
 import com.MediTrack.meditrack_backend.Ai_Module.dto.RiskAssessmentResponse;
 import com.MediTrack.meditrack_backend.Ai_Module.entity.RiskAssessment;
 import com.MediTrack.meditrack_backend.Ai_Module.repository.RiskAssessmentRepository;
+import com.MediTrack.meditrack_backend.Alerts_Module.enums.AlertSeverity;
+import com.MediTrack.meditrack_backend.Alerts_Module.service.AlertGenerator;
 import com.MediTrack.meditrack_backend.Asset_Management_Module.entity.MedicalDevice;
 import com.MediTrack.meditrack_backend.Auth_Module.entity.User;
 import com.MediTrack.meditrack_backend.Asset_Management_Module.repository.MedicalDeviceRepository;
@@ -34,6 +36,7 @@ public class RiskAssessmentService {
     private final RiskAssessmentRepository riskAssessmentRepository;
     private final MedicalDeviceRepository deviceRepository;
     private final UserRepository userRepository;
+    private final AlertGenerator alertGenerator;
 
     @Transactional
     public RiskAssessmentResponse assess(@Valid RfFeaturesRequest request) {
@@ -57,6 +60,10 @@ public class RiskAssessmentService {
 
         if (flaskResponse == null) {
             // circuit breaker fired — persist fallback record
+            alertGenerator.systemEvent(
+                    "RF risk model unavailable for device " + device.getName(),
+                    AlertSeverity.WARNING
+            );
             assessment = RiskAssessment.builder()
                     .device(device)
                     .requestedBy(requestedBy)
@@ -71,7 +78,6 @@ public class RiskAssessmentService {
 
             RiskAssessment saved = riskAssessmentRepository.save(assessment);
             log.warn("RF assessment fallback saved: id={}, deviceId={}", saved.getId(), device.getId());
-
             return RiskAssessmentResponse.builder()
                     .assessmentId(saved.getId())
                     .deviceId(device.getId())
@@ -97,6 +103,13 @@ public class RiskAssessmentService {
                 .build();
 
         RiskAssessment saved = riskAssessmentRepository.save(assessment);
+        alertGenerator.fromRfRiskAssessment(
+                device.getId(),
+                flaskResponse.getPredictedClass(),
+                flaskResponse.getPredictedLabel(),
+                flaskResponse.getConfidenceScore(),
+                device.getName()
+        );
         log.info("RF assessment saved: id={}, deviceId={}, riskClass={}, label={}",
                 saved.getId(), device.getId(),
                 saved.getPredictedClass(), saved.getPredictedLabel());

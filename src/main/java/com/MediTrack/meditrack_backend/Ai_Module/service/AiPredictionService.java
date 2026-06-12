@@ -9,6 +9,8 @@ import com.MediTrack.meditrack_backend.Ai_Module.entity.AiPrediction;
 import com.MediTrack.meditrack_backend.Ai_Module.entity.PredictRequest;
 import com.MediTrack.meditrack_backend.Ai_Module.entity.PredictResponse;
 import com.MediTrack.meditrack_backend.Ai_Module.repository.AiPredictionRepository;
+import com.MediTrack.meditrack_backend.Alerts_Module.enums.AlertSeverity;
+import com.MediTrack.meditrack_backend.Alerts_Module.service.AlertGenerator;
 import com.MediTrack.meditrack_backend.Asset_Management_Module.entity.MedicalDevice;
 import com.MediTrack.meditrack_backend.Auth_Module.entity.User;
 import com.MediTrack.meditrack_backend.Asset_Management_Module.repository.MedicalDeviceRepository;
@@ -37,6 +39,7 @@ public class AiPredictionService {
     private final AiPredictionRepository predictionRepository;
     private final MedicalDeviceRepository deviceRepository;
     private final UserRepository userRepository;
+    private final AlertGenerator alertGenerator;
 
     @Transactional
     public AiPredictionDTO predict(@Valid PredictionRequestDTO request) {
@@ -80,7 +83,10 @@ public class AiPredictionService {
         AiPrediction prediction;
 
         if (mlResponse == null) {
-
+            alertGenerator.systemEvent(
+                    "AI service unavailable during prediction for device " + device.getName(),
+                    AlertSeverity.WARNING
+            );
             // Circuit breaker fallback
             prediction = AiPrediction.builder()
                     .device(device)
@@ -90,11 +96,9 @@ public class AiPredictionService {
                     .thresholdUsed(THRESHOLD_USED)
                     .status("FALLBACK")
                     .errorMessage("ML service unavailable")
-
                     .avgTemperatureVariance(avgTemp)
                     .avgMotorVibration(avgVibration)
                     .avgVoltageDrop(avgVoltage)
-
                     .requestedBy(requestedBy)
                     .build();
 
@@ -118,14 +122,14 @@ public class AiPredictionService {
 
 
         AiPrediction saved = predictionRepository.save(prediction);
-
-///        log.info(
-//                "Prediction saved: id={}, deviceId={}, prediction={}, probability={}",
-//                saved.getId(),
-//                device.getId(),
-//                saved.getPrediction(),
-//                saved.getProbability()
-//        );
+        if (mlResponse != null) {
+            alertGenerator.fromLstmPrediction(
+                    device.getId(),
+                    mlResponse.getPrediction(),
+                    mlResponse.getProbability(),
+                    device.getName()
+            );
+        }
 
         return toDTO(saved);
     }

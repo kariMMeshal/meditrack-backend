@@ -49,9 +49,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         Bucket bucket = proxyManager.builder().build(bucketKey.getBytes(), configSupplier);
         ConsumptionProbe probe = bucket.tryConsumeAndReturnRemaining(1);
         if (probe.isConsumed()) {
-            System.out.println(
-                    "Remaining tokens: " + probe.getRemainingTokens()
-            );
+            logger.info("Remaining tokens: " + probe.getRemainingTokens());
             filterChain.doFilter(request, response);
         } else {
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
