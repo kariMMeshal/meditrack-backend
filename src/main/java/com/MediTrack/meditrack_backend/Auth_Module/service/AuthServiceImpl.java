@@ -77,48 +77,68 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public AuthResult login(LoginRequest request, String ip, String userAgent) {
 
-        // 1. Check lockout BEFORE touching the database for auth
-        if (lockOutService.isLocked(request.getUsername())) {
-            auditLogService.loginFailure(request.getUsername(), ip, userAgent, "Account locked");
+        String identifier = request.getUsername();
+
+        // 1. Lockout check (before DB/auth)
+        if (lockOutService.isLocked(identifier)) {
+            auditLogService.loginFailure(identifier, ip, userAgent, "Account locked");
             throw new BadCredentialsException("Authentication failed");
         }
 
+        // 2. Resolve user by username OR email
+        User user = userRepository.findByUsername(identifier)
+                .or(() -> userRepository.findByEmail(identifier))
+                .orElseThrow(() -> new BadCredentialsException("Authentication failed"));
+
+        // 3. Authenticate using Spring Security (MUST use username)
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
-                            request.getUsername(), request.getPassword()));
+                            user.getUsername(),
+                            request.getPassword()
+                    )
+            );
         } catch (AuthenticationException ex) {
 
-            // 2. Record failure in Redis — returns true if THIS attempt locked the account
-            boolean justLocked = lockOutService.recordFailure(request.getUsername());
+            boolean justLocked = lockOutService.recordFailure(identifier);
 
-            alertGenerator.failedLoginAttempt(request.getUsername(), ip);
+            alertGenerator.failedLoginAttempt(identifier, ip);
 
             if (justLocked) {
                 alertGenerator.accountLocked(
-                        request.getUsername(), ip, lockOutService.getLockoutMinutes());
+                        identifier,
+                        ip,
+                        lockOutService.getLockoutMinutes()
+                );
             }
 
-            auditLogService.loginFailure(request.getUsername(), ip, userAgent, ex.getMessage());
+            auditLogService.loginFailure(identifier, ip, userAgent, ex.getMessage());
             throw new BadCredentialsException("Authentication failed");
         }
 
-        User user = userRepository.findByUsername(request.getUsername())
-                .or(() -> userRepository.findByEmail(request.getUsername()))
-                .orElseThrow(() -> new RuntimeException("Invalid credentials"));
-
+        // 4. Check account status
         if (user.isDeleted() || !user.isEnabled()) {
             throw new BadCredentialsException("Authentication failed");
         }
 
-        // 3. Success — clear Redis lockout state
-        lockOutService.recordSuccess(user.getUsername());
+        // 5. Success → reset lockout
+        lockOutService.recordSuccess(identifier);
 
+        // 6. Generate tokens
         UserDetails userDetails = buildUserDetails(user);
+
         String accessToken = jwtService.generateToken(userDetails);
+
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
+
+        // 7. Audit log
         auditLogService.loginSuccess(user.getUsername(), ip, userAgent);
-        return new AuthResult(buildAuthResponse(user, accessToken) , refreshToken);
+
+        // 8. Return result
+        return new AuthResult(
+                buildAuthResponse(user, accessToken),
+                refreshToken
+        );
     }
 
     @Override
