@@ -1,12 +1,12 @@
 package com.MediTrack.meditrack_backend.Auth_Module.service;
 
-import com.MediTrack.meditrack_backend.Auth_Module.dto.AuthResponse;
+import com.MediTrack.meditrack_backend.Auth_Module.dto.AuthResult;
 import com.MediTrack.meditrack_backend.Auth_Module.dto.LoginRequest;
 import com.MediTrack.meditrack_backend.Auth_Module.dto.RegisterRequest;
 
 public interface AuthService {
 
-    AuthResponse register(RegisterRequest request);
+    AuthResult register(RegisterRequest request);
 
     /**
      * Authenticates user, enforces lockout, records audit event.
@@ -14,13 +14,13 @@ public interface AuthService {
      * @param ip      client IP address for audit log
      * @param userAgent browser/client identifier for audit log
      */
-    AuthResponse login(LoginRequest request, String ip, String userAgent);
+    AuthResult login(LoginRequest request, String ip, String userAgent);
 
     /**
      * Validates refresh token, rotates it, and issues a new access token.
      * @param refreshToken the opaque refresh token from a previous login
      */
-    AuthResponse refresh(String refreshToken, String ip);
+    AuthResult refresh(String refreshToken, String ip);
 
     /**
      * Revokes the refresh token server-side — real logout.

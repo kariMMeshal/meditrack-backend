@@ -2,6 +2,7 @@ package com.MediTrack.meditrack_backend.Auth_Module.service;
 
 import com.MediTrack.meditrack_backend.Alerts_Module.service.AlertGenerator;
 import com.MediTrack.meditrack_backend.Auth_Module.dto.AuthResponse;
+import com.MediTrack.meditrack_backend.Auth_Module.dto.AuthResult;
 import com.MediTrack.meditrack_backend.Auth_Module.dto.LoginRequest;
 import com.MediTrack.meditrack_backend.Auth_Module.dto.RegisterRequest;
 import com.MediTrack.meditrack_backend.Auth_Module.entity.RefreshToken;
@@ -45,7 +46,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public AuthResponse register(RegisterRequest request) {
+    public AuthResult register(RegisterRequest request) {
         // Use generic messages — never confirm which field is taken
         if (userRepository.existsByUsername(request.getUsername()) ||
                 userRepository.existsByEmail(request.getEmail())) {
@@ -66,17 +67,15 @@ public class AuthServiceImpl implements AuthService {
 
         User saved = userRepository.save(user);
         log.info("New user registered: {}", saved.getUsername());
-
         UserDetails userDetails = buildUserDetails(saved);
         String accessToken = jwtService.generateToken(userDetails);
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(saved);
-
-        return buildAuthResponse(saved, accessToken, refreshToken.getToken());
+        return new AuthResult(buildAuthResponse(saved, accessToken), refreshToken);
     }
 
     @Override
     @Transactional
-    public AuthResponse login(LoginRequest request, String ip, String userAgent) {
+    public AuthResult login(LoginRequest request, String ip, String userAgent) {
 
         // 1. Check lockout BEFORE touching the database for auth
         if (lockOutService.isLocked(request.getUsername())) {
@@ -105,7 +104,8 @@ public class AuthServiceImpl implements AuthService {
         }
 
         User user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .or(() -> userRepository.findByEmail(request.getUsername()))
+                .orElseThrow(() -> new RuntimeException("Invalid credentials"));
 
         if (user.isDeleted() || !user.isEnabled()) {
             throw new BadCredentialsException("Authentication failed");
@@ -117,14 +117,13 @@ public class AuthServiceImpl implements AuthService {
         UserDetails userDetails = buildUserDetails(user);
         String accessToken = jwtService.generateToken(userDetails);
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
-
         auditLogService.loginSuccess(user.getUsername(), ip, userAgent);
-        return buildAuthResponse(user, accessToken, refreshToken.getToken());
+        return new AuthResult(buildAuthResponse(user, accessToken) , refreshToken);
     }
 
     @Override
     @Transactional
-    public AuthResponse refresh(String rawToken, String ip) {
+    public AuthResult refresh(String rawToken, String ip) {
         // Validate old token — throws if revoked or expired
         RefreshToken oldToken = refreshTokenService.validateRefreshToken(rawToken);
         User user = oldToken.getUser();
@@ -139,7 +138,7 @@ public class AuthServiceImpl implements AuthService {
         auditLogService.tokenRefreshed(user.getUsername(), ip);
         log.info("Token rotated — username={}", user.getUsername());
 
-        return buildAuthResponse(user, newAccessToken, newRefreshToken.getToken());
+        return new AuthResult( buildAuthResponse(user, newAccessToken), newRefreshToken);
     }
 
     @Override
@@ -169,10 +168,9 @@ public class AuthServiceImpl implements AuthService {
                 .build();
     }
 
-    private AuthResponse buildAuthResponse(User user, String accessToken, String refreshToken) {
+    private AuthResponse buildAuthResponse(User user, String accessToken) {
         return AuthResponse.builder()
                 .accessToken(accessToken)
-                .refreshToken(refreshToken)
                 .tokenType("Bearer")
                 .expiresInMs(jwtService.getJwtExpirationMs())
                 .userId(user.getId())
