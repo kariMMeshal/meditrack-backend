@@ -23,18 +23,26 @@ import java.util.Map;
 @EnableCaching   // activates @Cacheable, @CacheEvict across the whole app
 public class RedisConfig {
 
-    @Value("${spring.redis.host:localhost}")
+    @Value("${REDIS_HOST:redis}")
     private String host;
 
-    @Value("${spring.redis.port:6379}")
+    @Value("${REDIS_PORT:6379}")
     private int port;
 
-    @Value("${spring.redis.password:}")
+    @Value("${REDIS_PASSWORD:}")
     private String password;
 
     @Bean
     public RedisClient redisClient() {
-        return RedisClient.create("redis://localhost:6379");
+        try {
+            String uri = (password != null && !password.isBlank())
+                    ? "redis://default:" + password + "@" + host + ":" + port
+                    : "redis://" + host + ":" + port;
+
+            return RedisClient.create(uri);
+        } catch (Exception e) {
+            throw new IllegalStateException("Redis init failed", e);
+        }
     }
 
     @Bean
