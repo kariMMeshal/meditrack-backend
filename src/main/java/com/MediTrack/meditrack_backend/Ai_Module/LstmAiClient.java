@@ -1,7 +1,7 @@
 package com.MediTrack.meditrack_backend.Ai_Module;
 
-import com.MediTrack.meditrack_backend.Ai_Module.dto.RfFlaskRequest;
-import com.MediTrack.meditrack_backend.Ai_Module.dto.RfFlaskResponse;
+import com.MediTrack.meditrack_backend.Ai_Module.entity.PredictRequest;
+import com.MediTrack.meditrack_backend.Ai_Module.entity.PredictResponse;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.extern.slf4j.Slf4j;
@@ -15,19 +15,20 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 import java.time.Duration;
+import java.util.Map;
 
 /**
- * Client for the Random Forest General Risk Classifier (lifetime device review).
- * Calls POST /predict/rf on the Flask/FastAPI ML service.
+ * Client for the LSTM Imminent Failure Predictor (72-hour window).
+ * Calls POST /predict/lstm on the Flask/FastAPI ML service.
  */
 @Component
 @Slf4j
-public class RfAiClient {
+public class LstmAiClient {
 
     private final RestClient restClient;
     private final String apiKey;
 
-    public RfAiClient(
+    public LstmAiClient(
             @Value("${ai.service.url}") String baseUrl,
             @Value("${ai.service.api-key:}") String apiKey
     ) {
@@ -49,30 +50,36 @@ public class RfAiClient {
                 .build();
     }
 
-    @CircuitBreaker(name = "rfService", fallbackMethod = "predictRfFallback")
-    @Retry(name = "rfService")
-    public RfFlaskResponse predict(RfFlaskRequest request) {
+    @CircuitBreaker(name = "lstmService", fallbackMethod = "predictFallback")
+    @Retry(name = "lstmService")
+    public PredictResponse predict(PredictRequest request) {
+        log.info("Sending LSTM prediction request to ML service");
 
-        log.info("Sending RF risk assessment request to ML service");
+        return restClient.post()
+                .uri("/predict/lstm")
+                .headers(this::applyApiKeyIfPresent)
+                .body(request)
+                .retrieve()
+                .body(PredictResponse.class);
+    }
 
+    public boolean isModelLoaded() {
         try {
-            return restClient.post()
-                    .uri("/predict/rf")
-                    .headers(this::applyApiKeyIfPresent)
-                    .body(request)
+            Map response = restClient.get()
+                    .uri("/health")
                     .retrieve()
-                    .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(),
-                            (req, res) -> {
-                                String body = new String(res.getBody().readAllBytes());
-                                log.error("RF ML failure response: {}", body);
-                                throw new RuntimeException(body);
-                            })
-                    .body(RfFlaskResponse.class);
+                    .body(Map.class);
 
+            return response != null && "ok".equals(response.get("status"));
         } catch (Exception ex) {
-            log.error("RF client exception: {}", ex.getMessage());
-            throw ex; // ensures circuit breaker fallback triggers
+            log.error("LSTM ML service health probe failed: {}", ex.getMessage());
+            return false;
         }
+    }
+
+    public PredictResponse predictFallback(PredictRequest request, Throwable ex) {
+        log.error("LSTM ML service unavailable, using fallback. Reason: {}", ex.getMessage());
+        return null;
     }
 
     private void applyApiKeyIfPresent(HttpHeaders headers) {

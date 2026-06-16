@@ -31,6 +31,8 @@ import java.util.Map;
 public class RiskAssessmentService {
 
     private static final String MODEL_VERSION = "rf_v1";
+    private static final String FALLBACK_RECOMMENDATION =
+            "AI inference service unavailable. Manual assessment required.";
 
     private final RfAiClient rfAiClient;
     private final RiskAssessmentRepository riskAssessmentRepository;
@@ -47,6 +49,7 @@ public class RiskAssessmentService {
 
         String username = SecurityContextHolder.getContext()
                 .getAuthentication().getName();
+
         User requestedBy = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -59,35 +62,35 @@ public class RiskAssessmentService {
         RiskAssessment assessment;
 
         if (flaskResponse == null) {
-            // circuit breaker fired — persist fallback record
+
+            log.warn("RF prediction returned null (service unavailable or circuit breaker open) — deviceId={}",
+                    device.getId());
+
             alertGenerator.systemEvent(
                     "RF risk model unavailable for device " + device.getName(),
                     AlertSeverity.WARNING
             );
+
             assessment = RiskAssessment.builder()
                     .device(device)
                     .requestedBy(requestedBy)
-                    .predictedClass(null)
-                    .predictedLabel(null)
-                    .confidenceScore(null)
-                    .recommendation(null)
+                    .predictedClass(0)
+                    .predictedLabel("Unknown")
+                    .confidenceScore(0.0)
+                    .recommendation(FALLBACK_RECOMMENDATION)
                     .modelVersion(MODEL_VERSION)
                     .status("FALLBACK")
                     .errorMessage("RF ML service unavailable")
                     .build();
 
             RiskAssessment saved = riskAssessmentRepository.save(assessment);
-            log.warn("RF assessment fallback saved: id={}, deviceId={}", saved.getId(), device.getId());
-            return RiskAssessmentResponse.builder()
-                    .assessmentId(saved.getId())
-                    .deviceId(device.getId())
-                    .deviceName(device.getName())
-                    .status("FALLBACK")
-                    .recommendation("AI inference service unavailable. Manual assessment required.")
-                    .modelVersion(MODEL_VERSION)
-                    .createdAt(saved.getCreatedAt())
-                    .build();
+
+            return toResponse(saved, device);
         }
+
+        Double confidence = flaskResponse.getConfidenceScore() != null
+                ? flaskResponse.getConfidenceScore()
+                : 0.0;
 
         String recommendation = RiskRecommendationMapper.resolve(flaskResponse.getPredictedClass());
 
@@ -96,23 +99,22 @@ public class RiskAssessmentService {
                 .requestedBy(requestedBy)
                 .predictedClass(flaskResponse.getPredictedClass())
                 .predictedLabel(flaskResponse.getPredictedLabel())
-                .confidenceScore(flaskResponse.getConfidenceScore())
+                .confidenceScore(confidence)
                 .recommendation(recommendation)
                 .modelVersion(MODEL_VERSION)
                 .status("SUCCESS")
                 .build();
 
+
         RiskAssessment saved = riskAssessmentRepository.save(assessment);
+
         alertGenerator.fromRfRiskAssessment(
                 device.getId(),
                 flaskResponse.getPredictedClass(),
                 flaskResponse.getPredictedLabel(),
-                flaskResponse.getConfidenceScore(),
+                confidence,
                 device.getName()
         );
-        log.info("RF assessment saved: id={}, deviceId={}, riskClass={}, label={}",
-                saved.getId(), device.getId(),
-                saved.getPredictedClass(), saved.getPredictedLabel());
 
         return toResponse(saved, device);
     }
@@ -131,34 +133,46 @@ public class RiskAssessmentService {
     public Page<RiskAssessmentResponse> getAll(Pageable pageable) {
         log.info("Fetching all risk assessments — page={}, size={}",
                 pageable.getPageNumber(), pageable.getPageSize());
+
         return riskAssessmentRepository.findAll(pageable)
                 .map(a -> toResponse(a, a.getDevice()));
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────
 
-    /**
-     * Builds the features map in exact field order the RF model expects.
-     * Key names must match Python training column names exactly.
-     */
     private Map<String, Object> buildFeaturesMap(RfFeaturesRequest r) {
+
+        if (r == null) {
+            throw new IllegalArgumentException("RF request is null");
+        }
+
         Map<String, Object> features = new LinkedHashMap<>();
-        features.put("Device_Type",          r.getDevice_Type());
-        features.put("Manufacturer",         r.getManufacturer());
-        features.put("Model",                r.getModel());
-        features.put("Country",              r.getCountry());
-        features.put("Age",                  r.getAge());
-        features.put("Maintenance_Cost",     r.getMaintenance_Cost());
-        features.put("Downtime",             r.getDowntime());
-        features.put("Maintenance_Frequency",r.getMaintenance_Frequency());
-        features.put("Failure_Event_Count",  r.getFailure_Event_Count());
-        features.put("Maintenance_Class",    r.getMaintenance_Class());
-        features.put("Operational_Hours_Est",r.getOperational_Hours_Est());
-        features.put("Expected_Lifespan_Est",r.getExpected_Lifespan_Est());
-        features.put("MTBF",                 r.getMTBF());
-        features.put("Cost_Per_Hour",        r.getCost_Per_Hour());
-        features.put("Lifespan_Usage_Ratio", r.getLifespan_Usage_Ratio());
+
+        features.put("Device_Type", r.getDeviceType());
+        features.put("Manufacturer", r.getManufacturer());
+        features.put("Model", r.getModel());
+        features.put("Country", r.getCountry());
+        features.put("Age", r.getAge());
+        features.put("Maintenance_Cost", r.getMaintenanceCost());
+        features.put("Downtime", r.getDowntime());
+        features.put("Maintenance_Frequency", r.getMaintenanceFrequency());
+        features.put("Failure_Event_Count", r.getFailureEventCount());
+        features.put("Maintenance_Class", encodeMaintenanceClass(r.getMaintenanceClass()));
+        features.put("Operational_Hours_Est", r.getOperationalHoursEst());
+        features.put("Expected_Lifespan_Est", r.getExpectedLifespanEst());
+        features.put("MTBF", r.getMtbf());
+        features.put("Cost_Per_Hour", r.getCostPerHour());
+        features.put("Lifespan_Usage_Ratio", r.getLifespanUsageRatio());
+
         return features;
+    }
+    private int encodeMaintenanceClass(String value) {
+        return switch (value.toLowerCase()) {
+            case "low" -> 0;
+            case "medium" -> 1;
+            case "high" -> 2;
+            default -> 0;
+        };
     }
 
     private RiskAssessmentResponse toResponse(RiskAssessment a, MedicalDevice device) {

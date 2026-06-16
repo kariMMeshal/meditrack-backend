@@ -28,18 +28,20 @@ public class RiskAssessment {
     private User requestedBy;
 
     // ── RF Output ────────────────────────────────────────────────────
+    // All four fields below are NULLABLE because a FALLBACK record
+    // (RF service unavailable) legitimately has no prediction at all.
 
-    @Column(name = "predicted_class", nullable = false)
-    private Integer predictedClass;             // 0, 1, 2
+    @Column(name = "predicted_class")
+    private Integer predictedClass;             // 0, 1, 2 — null if FALLBACK
 
-    @Column(name = "predicted_label", nullable = false)
-    private String predictedLabel;              // Low Risk / Medium Risk / High Risk
+    @Column(name = "predicted_label")
+    private String predictedLabel;              // Low Risk / Medium Risk / High Risk — null if FALLBACK
 
-    @Column(name = "confidence_score", nullable = false)
-    private Double confidenceScore;
+    @Column(name = "confidence_score")
+    private Double confidenceScore;             // null if FALLBACK
 
-    @Column(name = "recommendation", nullable = false)
-    private String recommendation;
+    @Column(name = "recommendation", length = 500)
+    private String recommendation;              // always set — fallback message for FALLBACK status
 
     // ── Audit ─────────────────────────────────────────────────────────
 

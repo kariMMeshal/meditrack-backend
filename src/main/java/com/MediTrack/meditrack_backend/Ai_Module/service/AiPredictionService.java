@@ -1,7 +1,7 @@
 package com.MediTrack.meditrack_backend.Ai_Module.service;
 
 
-import com.MediTrack.meditrack_backend.Ai_Module.AiServiceClient;
+import com.MediTrack.meditrack_backend.Ai_Module.LstmAiClient;
 import com.MediTrack.meditrack_backend.Ai_Module.dto.AiHealthDTO;
 import com.MediTrack.meditrack_backend.Ai_Module.dto.AiPredictionDTO;
 import com.MediTrack.meditrack_backend.Ai_Module.dto.PredictionRequestDTO;
@@ -35,7 +35,7 @@ public class AiPredictionService {
     private static final String MODEL_VERSION = "lstm_v1";
     private static final double THRESHOLD_USED = 0.9897;
 
-    private final AiServiceClient aiServiceClient;
+    private final LstmAiClient lstmAiClient;
     private final AiPredictionRepository predictionRepository;
     private final MedicalDeviceRepository deviceRepository;
     private final UserRepository userRepository;
@@ -43,7 +43,6 @@ public class AiPredictionService {
 
     @Transactional
     public AiPredictionDTO predict(@Valid PredictionRequestDTO request) {
-
         MedicalDevice device = deviceRepository.findById(request.getDeviceId())
                 .orElseThrow(() -> new RuntimeException(
                         "Device not found with ID: " + request.getDeviceId()));
@@ -78,7 +77,7 @@ public class AiPredictionService {
         // ---------------------------------------------
 
 
-        PredictResponse mlResponse = aiServiceClient.predict(mlRequest);
+        PredictResponse mlResponse = lstmAiClient.predict(mlRequest);
 
         AiPrediction prediction;
 
@@ -152,7 +151,7 @@ public class AiPredictionService {
         log.info("AI health check requested");
 
         try {
-            boolean modelLoaded = aiServiceClient.isModelLoaded();
+            boolean modelLoaded = lstmAiClient.isModelLoaded();
 
             if (modelLoaded) {
                 return AiHealthDTO.builder()

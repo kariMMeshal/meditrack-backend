@@ -1,5 +1,6 @@
 package com.MediTrack.meditrack_backend.Ai_Module.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 
@@ -11,59 +12,63 @@ public class RfFeaturesRequest {
 
     // ── 15 RF model features ──────────────────────────────────────────
 
+    @JsonProperty("Device_Type")
     @NotBlank(message = "Device_Type is required")
-    private String Device_Type;
+    private String deviceType;
 
+    @JsonProperty("Manufacturer")
     @NotBlank(message = "Manufacturer is required")
-    private String Manufacturer;
+    private String manufacturer;
 
+    @JsonProperty("Model")
     @NotBlank(message = "Model is required")
-    private String Model;
+    private String model;
 
+    @JsonProperty("Country")
     @NotBlank(message = "Country is required")
-    private String Country;
+    private String country;
 
-    @NotNull(message = "Age is required")
-    @Min(value = 0, message = "Age must be zero or greater")
-    private Double Age;
+    @JsonProperty("Age")
+    @NotNull
+    private Double age;
 
-    @NotNull(message = "Maintenance_Cost is required")
-    @Min(value = 0, message = "Maintenance_Cost must be zero or greater")
-    private Double Maintenance_Cost;
+    @JsonProperty("Maintenance_Cost")
+    @NotNull
+    private Double maintenanceCost;
 
-    @NotNull(message = "Downtime is required")
-    @Min(value = 0, message = "Downtime must be zero or greater")
-    private Double Downtime;
+    @JsonProperty("Downtime")
+    @NotNull
+    private Double downtime;
 
-    @NotNull(message = "Maintenance_Frequency is required")
-    @Min(value = 0, message = "Maintenance_Frequency must be zero or greater")
-    private Double Maintenance_Frequency;
+    @JsonProperty("Maintenance_Frequency")
+    @NotNull
+    private Double maintenanceFrequency;
 
-    @NotNull(message = "Failure_Event_Count is required")
-    @Min(value = 0, message = "Failure_Event_Count must be zero or greater")
-    private Integer Failure_Event_Count;
+    @JsonProperty("Failure_Event_Count")
+    @NotNull
+    private Integer failureEventCount;
 
-    @NotBlank(message = "Maintenance_Class is required")
-    private String Maintenance_Class;
+    @JsonProperty("Maintenance_Class")
+    @NotBlank
+    private String maintenanceClass;
 
-    @NotNull(message = "Operational_Hours_Est is required")
-    @Min(value = 0, message = "Operational_Hours_Est must be zero or greater")
-    private Double Operational_Hours_Est;
+    @JsonProperty("Operational_Hours_Est")
+    @NotNull
+    private Double operationalHoursEst;
 
-    @NotNull(message = "Expected_Lifespan_Est is required")
-    @Min(value = 0, message = "Expected_Lifespan_Est must be zero or greater")
-    private Double Expected_Lifespan_Est;
+    @JsonProperty("Expected_Lifespan_Est")
+    @NotNull
+    private Double expectedLifespanEst;
 
-    @NotNull(message = "MTBF is required")
-    @Min(value = 0, message = "MTBF must be zero or greater")
-    private Double MTBF;
+    @JsonProperty("MTBF")
+    @NotNull
+    private Double mtbf;
 
-    @NotNull(message = "Cost_Per_Hour is required")
-    @Min(value = 0, message = "Cost_Per_Hour must be zero or greater")
-    private Double Cost_Per_Hour;
+    @JsonProperty("Cost_Per_Hour")
+    @NotNull
+    private Double costPerHour;
 
-    @NotNull(message = "Lifespan_Usage_Ratio is required")
-    @DecimalMin(value = "0.0", message = "Lifespan_Usage_Ratio must be between 0 and 1")
-    @DecimalMax(value = "1.0", message = "Lifespan_Usage_Ratio must be between 0 and 1")
-    private Double Lifespan_Usage_Ratio;
+    @JsonProperty("Lifespan_Usage_Ratio")
+    @NotNull
+    private Double lifespanUsageRatio;
 }
