@@ -1,5 +1,5 @@
 # =========================
-# BUILD STAGE (Maven inside Docker)
+# BUILD STAGE
 # =========================
 FROM maven:3.9-eclipse-temurin-21 AS build
 
@@ -11,19 +11,26 @@ COPY src ./src
 RUN mvn clean package -DskipTests
 
 # =========================
-# RUNTIME STAGE (lightweight)
+# RUNTIME STAGE
 # =========================
-FROM eclipse-temurin:21-jdk
+FROM eclipse-temurin:21-jre
 
-RUN groupadd spring && useradd -m -g spring spring
+RUN groupadd -r spring && useradd -r -g spring spring
 
 WORKDIR /app
 
 COPY --from=build /app/target/*.jar app.jar
 
 RUN chown spring:spring app.jar
+
 USER spring
 
 EXPOSE 8080
 
-ENTRYPOINT ["java","-XX:+UseContainerSupport","-XX:MaxRAMPercentage=75.0","-jar","app.jar"]
+ENTRYPOINT ["java", \
+"-XX:+UseContainerSupport", \
+"-XX:MaxRAMPercentage=75.0", \
+"-XX:+ExitOnOutOfMemoryError", \
+"-Djava.security.egd=file:/dev/./urandom", \
+"-jar", \
+"app.jar"]
