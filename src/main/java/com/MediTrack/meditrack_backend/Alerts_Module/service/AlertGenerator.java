@@ -2,7 +2,10 @@ package com.MediTrack.meditrack_backend.Alerts_Module.service;
 
 
 
+import com.MediTrack.meditrack_backend.Alerts_Module.controller.AlertController;
+import com.MediTrack.meditrack_backend.Alerts_Module.dto.AlertDTO;
 import com.MediTrack.meditrack_backend.Alerts_Module.dto.CreateAlertRequest;
+import com.MediTrack.meditrack_backend.Alerts_Module.entity.Alert;
 import com.MediTrack.meditrack_backend.Alerts_Module.enums.AlertSeverity;
 import com.MediTrack.meditrack_backend.Alerts_Module.enums.AlertType;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +29,7 @@ import org.springframework.stereotype.Component;
 public class AlertGenerator {
 
     private final AlertService alertService;
-
+    private final AlertEventPublisher alertEventPublisher;
     // ── AI / ML Alerts ────────────────────────────────────────────────
 
     /**
@@ -47,13 +50,15 @@ public class AlertGenerator {
                 probability, prediction, deviceId);
 
         log.info("Generating AI_ALERT from LSTM prediction — deviceId={}, probability={}", deviceId, probability);
-        alertService.createAlert(CreateAlertRequest.builder()
+
+     AlertDTO saved = alertService.createAlert(CreateAlertRequest.builder()
                 .type(AlertType.AI_ALERT)
                 .severity(severity)
                 .message(message)
                 .deviceId(deviceId)
                 .metadata(metadata)
                 .build());
+        alertEventPublisher.push(saved);
     }
 
     /**
@@ -74,13 +79,14 @@ public class AlertGenerator {
                 riskClass, riskLabel, confidence, deviceId);
 
         log.info("Generating AI_ALERT from RF assessment — deviceId={}, riskClass={}", deviceId, riskClass);
-        alertService.createAlert(CreateAlertRequest.builder()
+     AlertDTO saved = alertService.createAlert(CreateAlertRequest.builder()
                 .type(AlertType.AI_ALERT)
                 .severity(severity)
                 .message(message)
                 .deviceId(deviceId)
                 .metadata(metadata)
                 .build());
+        alertEventPublisher.push(saved);
     }
 
     // ── Device Alerts ─────────────────────────────────────────────────
@@ -94,13 +100,14 @@ public class AlertGenerator {
                 deviceId, hoursOverdue);
 
         log.info("Generating DEVICE_ALERT (sterilization overdue) — deviceId={}", deviceId);
-        alertService.createAlert(CreateAlertRequest.builder()
+       AlertDTO saved = alertService.createAlert(CreateAlertRequest.builder()
                 .type(AlertType.DEVICE_ALERT)
                 .severity(AlertSeverity.CRITICAL)
                 .message(message)
                 .deviceId(deviceId)
                 .metadata(metadata)
                 .build());
+        alertEventPublisher.push(saved);
     }
 
     public void usageHoursExceeded(Integer deviceId, String deviceName,
@@ -114,13 +121,14 @@ public class AlertGenerator {
                 deviceId, usageHours, maxHours);
 
         log.info("Generating DEVICE_ALERT (usage exceeded) — deviceId={}", deviceId);
-        alertService.createAlert(CreateAlertRequest.builder()
+     AlertDTO saved= alertService.createAlert(CreateAlertRequest.builder()
                 .type(AlertType.DEVICE_ALERT)
                 .severity(AlertSeverity.WARNING)
                 .message(message)
                 .deviceId(deviceId)
                 .metadata(metadata)
                 .build());
+        alertEventPublisher.push(saved);
     }
 
     public void cleaningOverdue(Integer deviceId, String deviceName, long hoursOverdue) {
@@ -132,13 +140,14 @@ public class AlertGenerator {
                 deviceId, hoursOverdue);
 
         log.info("Generating DEVICE_ALERT (cleaning overdue) — deviceId={}", deviceId);
-        alertService.createAlert(CreateAlertRequest.builder()
+        AlertDTO saved = alertService.createAlert(CreateAlertRequest.builder()
                 .type(AlertType.DEVICE_ALERT)
                 .severity(AlertSeverity.WARNING)
                 .message(message)
                 .deviceId(deviceId)
                 .metadata(metadata)
                 .build());
+        alertEventPublisher.push(saved);
     }
 
     // ── Security Alerts ───────────────────────────────────────────────
@@ -152,12 +161,13 @@ public class AlertGenerator {
                 username, ipAddress);
 
         log.info("Generating SECURITY_ALERT (failed login) — username={}", username);
-        alertService.createAlert(CreateAlertRequest.builder()
+      AlertDTO saved =  alertService.createAlert(CreateAlertRequest.builder()
                 .type(AlertType.SECURITY_ALERT)
                 .severity(AlertSeverity.WARNING)
                 .message(message)
                 .metadata(metadata)
                 .build());
+        alertEventPublisher.push(saved);
     }
 
     /**
@@ -173,12 +183,13 @@ public class AlertGenerator {
                 username, ipAddress, lockoutMinutes);
 
         log.warn("Generating SECURITY_ALERT (account locked) — username={}", username);
-        alertService.createAlert(CreateAlertRequest.builder()
+       AlertDTO saved = alertService.createAlert(CreateAlertRequest.builder()
                 .type(AlertType.SECURITY_ALERT)
                 .severity(AlertSeverity.CRITICAL)
                 .message(message)
                 .metadata(metadata)
                 .build());
+        alertEventPublisher.push(saved);
     }
 
     // ── User Activity Alerts ──────────────────────────────────────────
@@ -190,39 +201,97 @@ public class AlertGenerator {
                 "{\"newUserId\":%d,\"newUsername\":\"%s\",\"performedBy\":\"%s\",\"event\":\"USER_CREATED\"}",
                 newUserId, newUsername, performedBy);
 
-        alertService.createAlert(CreateAlertRequest.builder()
+        log.info("Generating USER_ACTIVITY_ALERT (user created) — newUserId={}", newUserId);
+       AlertDTO saved = alertService.createAlert(CreateAlertRequest.builder()
                 .type(AlertType.USER_ACTIVITY_ALERT)
                 .severity(AlertSeverity.INFO)
                 .message(message)
                 .userId(newUserId)
                 .metadata(metadata)
                 .build());
+        alertEventPublisher.push(saved);
+
+    }
+    public void userDeleted(Integer userId,
+                            String username,
+                            String performedBy) {
+
+        String message = String.format(
+                "User '%s' was deleted by '%s'.",
+                username,
+                performedBy);
+
+        String metadata = String.format(
+                "{\"userId\":%d,\"username\":\"%s\",\"performedBy\":\"%s\",\"event\":\"USER_DELETED\"}",
+                userId,
+                username,
+                performedBy);
+
+      AlertDTO saved= alertService.createAlert(CreateAlertRequest.builder()
+                .type(AlertType.USER_ACTIVITY_ALERT)
+                .severity(AlertSeverity.WARNING)
+                .message(message)
+                .metadata(metadata)
+                .build());
+        alertEventPublisher.push(saved);
     }
 
-    public void roleChanged(Integer userId, String username, String newRole, String performedBy) {
+    public void roleAssigned(Integer userId, String username, String role, String performedBy) {
         String message = String.format(
-                "Role '%s' was assigned to user '%s' by '%s'.", newRole, username, performedBy);
-        String metadata = String.format(
-                "{\"userId\":%d,\"username\":\"%s\",\"newRole\":\"%s\",\"performedBy\":\"%s\",\"event\":\"ROLE_CHANGED\"}",
-                userId, username, newRole, performedBy);
+                "Role '%s' was assigned to user '%s' by '%s'.",
+                role, username, performedBy);
 
-        alertService.createAlert(CreateAlertRequest.builder()
+      AlertDTO saved =  alertService.createAlert(CreateAlertRequest.builder()
                 .type(AlertType.USER_ACTIVITY_ALERT)
                 .severity(AlertSeverity.INFO)
                 .message(message)
                 .userId(userId)
-                .metadata(metadata)
                 .build());
+        alertEventPublisher.push(saved);
     }
 
+    public void roleRemoved(Integer userId, String username, String role, String performedBy) {
+        String message = String.format(
+                "Role '%s' was removed from user '%s' by '%s'.",
+                role, username, performedBy);
+
+      AlertDTO saved =  alertService.createAlert(CreateAlertRequest.builder()
+                .type(AlertType.USER_ACTIVITY_ALERT)
+                .severity(AlertSeverity.INFO)
+                .message(message)
+                .userId(userId)
+                .build());
+        alertEventPublisher.push(saved);
+    }
     // ── System Alerts ─────────────────────────────────────────────────
 
     public void systemEvent(String eventDescription, AlertSeverity severity) {
-        alertService.createAlert(CreateAlertRequest.builder()
+       AlertDTO saved = alertService.createAlert(CreateAlertRequest.builder()
                 .type(AlertType.SYSTEM_ALERT)
                 .severity(severity)
                 .message(eventDescription)
                 .metadata("{\"source\":\"system\"}")
                 .build());
+        alertEventPublisher.push(saved);
     }
+    // generic method for any alert type that doesn't fit the above categories
+    public void generic(
+            AlertType type,
+            AlertSeverity severity,
+            String message,
+            Integer deviceId,
+            Integer userId,
+            String metadata) {
+
+       AlertDTO saved = alertService.createAlert(CreateAlertRequest.builder()
+                .type(type)
+                .severity(severity)
+                .message(message)
+                .deviceId(deviceId)
+                .userId(userId)
+                .metadata(metadata)
+                .build());
+        alertEventPublisher.push(saved);
+    }
+
 }

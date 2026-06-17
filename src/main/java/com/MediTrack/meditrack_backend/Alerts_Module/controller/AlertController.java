@@ -1,10 +1,8 @@
 package com.MediTrack.meditrack_backend.Alerts_Module.controller;
-
-
-
-
 import com.MediTrack.meditrack_backend.Alerts_Module.dto.AlertDTO;
 import com.MediTrack.meditrack_backend.Alerts_Module.dto.AlertReportDTO;
+import com.MediTrack.meditrack_backend.Alerts_Module.dto.CreateAlertRequest;
+import com.MediTrack.meditrack_backend.Alerts_Module.service.AlertEventPublisher;
 import com.MediTrack.meditrack_backend.Alerts_Module.service.AlertService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -24,10 +22,20 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class AlertController {
 
     private final AlertService alertService;
+    private final AlertEventPublisher alertEventPublisher;
 
     // SSE emitters — one per connected client
     // CopyOnWriteArrayList is thread-safe for concurrent add/remove
     private final CopyOnWriteArrayList<SseEmitter> emitters = new CopyOnWriteArrayList<>();
+
+    // ── POST endpoints ─────────────────────────────────────────────────
+
+    @PostMapping
+    public ResponseEntity<AlertDTO> createAlert(@RequestBody CreateAlertRequest request) {
+        AlertDTO created = alertService.createAlert(request);
+        alertEventPublisher.push(created);
+        return ResponseEntity.ok(created);
+    }
 
     // ── GET endpoints ─────────────────────────────────────────────────
 
@@ -58,21 +66,21 @@ public class AlertController {
     @PutMapping("/{id}/read")
     public ResponseEntity<AlertDTO> markAsRead(@PathVariable Long id) {
         AlertDTO updated = alertService.markAsRead(id);
-        pushToSseClients(updated);
+        alertEventPublisher.push(updated);
         return ResponseEntity.ok(updated);
     }
 
     @PutMapping("/{id}/acknowledge")
     public ResponseEntity<AlertDTO> acknowledge(@PathVariable Long id) {
         AlertDTO updated = alertService.acknowledgeAlert(id);
-        pushToSseClients(updated);
+        alertEventPublisher.push(updated);
         return ResponseEntity.ok(updated);
     }
 
     @PutMapping("/{id}/resolve")
     public ResponseEntity<AlertDTO> resolve(@PathVariable Long id) {
         AlertDTO updated = alertService.resolveAlert(id);
-        pushToSseClients(updated);
+        alertEventPublisher.push(updated);
         return ResponseEntity.ok(updated);
     }
 
@@ -105,21 +113,4 @@ public class AlertController {
         return emitter;
     }
 
-    // ── SSE Push Helper ───────────────────────────────────────────────
-
-    /**
-     * Broadcasts an alert update to all connected SSE clients.
-     * Dead emitters are cleaned up silently.
-     */
-    public void pushToSseClients(AlertDTO alert) {
-        emitters.forEach(emitter -> {
-            try {
-                emitter.send(SseEmitter.event()
-                        .name("alert-update")
-                        .data(alert));
-            } catch (IOException ex) {
-                emitters.remove(emitter);
-            }
-        });
-    }
 }

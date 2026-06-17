@@ -111,6 +111,11 @@ public class UserServiceImpl implements UserService {
         user.setDeleted(true);
         user.setEnabled(false);
         userRepository.save(user);
+        alertGenerator.userDeleted(
+                user.getId(),
+                user.getUsername(),
+                SecurityContextHolder.getContext().getAuthentication().getName()
+        );
     }
 
     @Override
@@ -188,7 +193,7 @@ public class UserServiceImpl implements UserService {
                 .getAuthentication()
                 .getName();
 
-        alertGenerator.roleChanged(
+        alertGenerator.roleAssigned(
                 saved.getId(),
                 saved.getUsername(),
                 role.getRole(),
@@ -216,7 +221,7 @@ public class UserServiceImpl implements UserService {
                 .getAuthentication()
                 .getName();
 
-        alertGenerator.roleChanged(
+        alertGenerator.roleRemoved(
                 saved.getId(),
                 saved.getUsername(),
                 role.getRole(),

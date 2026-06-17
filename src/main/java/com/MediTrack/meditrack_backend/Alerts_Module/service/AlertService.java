@@ -41,8 +41,11 @@ public class AlertService {
                         request.getDeviceId(),
                         request.getType(),
                         List.of(AlertStatus.NEW, AlertStatus.ACKNOWLEDGED))) {
-            log.info("Duplicate alert skipped — deviceId={}, type={}", request.getDeviceId(), request.getType());
-            return null;
+
+            log.info("Duplicate alert skipped — deviceId={}, type={}",
+                    request.getDeviceId(), request.getType());
+
+            throw new IllegalStateException("Duplicate alert suppressed");
         }
 
         Alert alert = Alert.builder()
