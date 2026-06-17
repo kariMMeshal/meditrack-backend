@@ -30,7 +30,7 @@ public class AlertController {
 
     // ── POST endpoints ─────────────────────────────────────────────────
 
-    @PostMapping
+    @PostMapping("/add-alert")
     public ResponseEntity<AlertDTO> createAlert(@RequestBody CreateAlertRequest request) {
         AlertDTO created = alertService.createAlert(request);
         alertEventPublisher.push(created);
