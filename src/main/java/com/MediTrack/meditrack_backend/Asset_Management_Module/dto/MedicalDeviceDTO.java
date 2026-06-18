@@ -48,4 +48,20 @@ public class MedicalDeviceDTO {
     private LocalDate nextMaintenanceDate;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private LocalDate lastCleanedDate;
+    private LocalDate lastSterilizationDate;
+
+    @PositiveOrZero
+    private Integer maxUsageHours;
+
+    @PositiveOrZero
+    private Integer sterilizationIntervalHours;
+
+    @PositiveOrZero
+    private Integer usageHours;
+
+    private Integer riskScore;
+    private String riskLevel;
+    private String maintenanceDue;
+    private String sterilizationDue;
 }
