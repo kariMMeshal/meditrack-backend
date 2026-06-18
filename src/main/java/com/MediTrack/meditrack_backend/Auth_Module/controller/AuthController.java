@@ -111,7 +111,7 @@ public class AuthController {
         ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)
                 .httpOnly(true)
                 .secure(true) // production only
-                .path("/")
+                .path("/api/auth/refresh")
                 .maxAge(7 * 24 * 60 * 60)
                 .sameSite("None") // allow cross-site requests for refresh
                 .build();

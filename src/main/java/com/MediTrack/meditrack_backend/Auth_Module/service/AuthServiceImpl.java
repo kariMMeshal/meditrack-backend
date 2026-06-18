@@ -128,7 +128,7 @@ public class AuthServiceImpl implements AuthService {
         UserDetails userDetails = buildUserDetails(user);
 
         String accessToken = jwtService.generateToken(userDetails);
-
+        refreshTokenService.revokeAllForUser(user);
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
 
         // 7. Audit log
